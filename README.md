@@ -1,1 +1,4 @@
 # JustStart
+shinkoenji
+nakano
+shinjuku
