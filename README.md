@@ -2,3 +2,4 @@
 shinkoenji
 nakano
 shinjuku
+nomimasu
