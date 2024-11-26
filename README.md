@@ -3,3 +3,4 @@ shinkoenji
 nakano
 shinjuku
 nomimasu
+suginamiku
