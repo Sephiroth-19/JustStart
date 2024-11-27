@@ -4,3 +4,4 @@ nakano
 shinjuku
 nomimasu
 suginamiku
+wasurete
