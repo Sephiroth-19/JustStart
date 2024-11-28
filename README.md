@@ -5,3 +5,8 @@ shinjuku
 nomimasu
 suginamiku
 wasurete
+harimasu
+kakemasu
+kazarimasu
+narabemasu
+uemasumadushimasumatomemasushimaimasukimemasushiushiuushimasufukushiuushimasu
