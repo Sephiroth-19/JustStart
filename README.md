@@ -10,3 +10,4 @@ kakemasu
 kazarimasu
 narabemasu
 uemasumadushimasumatomemasushimaimasukimemasushiushiuushimasufukushiuushimasu
+wenbanyama
