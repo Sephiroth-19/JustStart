@@ -11,3 +11,4 @@ kazarimasu
 narabemasu
 uemasumadushimasumatomemasushimaimasukimemasushiushiuushimasufukushiuushimasu
 wenbanyama
+sumimase
