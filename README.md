@@ -12,3 +12,4 @@ narabemasu
 uemasumadushimasumatomemasushimaimasukimemasushiushiuushimasufukushiuushimasu
 wenbanyama
 sumimase
+takaomachi
