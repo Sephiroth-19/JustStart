@@ -14,3 +14,4 @@ wenbanyama
 sumimase
 takaomachi
 hachiouji
+owarimasu
