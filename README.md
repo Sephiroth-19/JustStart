@@ -15,3 +15,4 @@ sumimase
 takaomachi
 hachiouji
 owarimasu
+wakarimasan
