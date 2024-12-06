@@ -16,3 +16,4 @@ takaomachi
 hachiouji
 owarimasu
 wakarimasan
+omiyagei
