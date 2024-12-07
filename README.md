@@ -17,3 +17,4 @@ hachiouji
 owarimasu
 wakarimasan
 omiyagei
+tadaima
