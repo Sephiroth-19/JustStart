@@ -18,3 +18,4 @@ owarimasu
 wakarimasan
 omiyagei
 tadaima
+elabemasu
