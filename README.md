@@ -19,3 +19,4 @@ wakarimasan
 omiyagei
 tadaima
 elabemasu
+infuluenza
