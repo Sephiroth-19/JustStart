@@ -20,3 +20,4 @@ omiyagei
 tadaima
 elabemasu
 infuluenza
+kamoshiremasen
