@@ -21,3 +21,4 @@ tadaima
 elabemasu
 infuluenza
 kamoshiremasen
+kagiyama
