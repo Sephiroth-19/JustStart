@@ -22,3 +22,4 @@ elabemasu
 infuluenza
 kamoshiremasen
 kagiyama
+csukue
