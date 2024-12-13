@@ -23,3 +23,4 @@ infuluenza
 kamoshiremasen
 kagiyama
 csukue
+zou
