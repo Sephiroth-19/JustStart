@@ -4,4 +4,4 @@ nakano
 shinjuku
 nomimasu
 suginamiku
-
+soshite
