@@ -5,3 +5,4 @@ shinjuku
 nomimasu
 suginamiku
 soshite
+hantoshimae
