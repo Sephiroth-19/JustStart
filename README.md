@@ -6,3 +6,4 @@ nomimasu
 suginamiku
 soshite
 hantoshimae
+mazu
