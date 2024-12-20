@@ -7,3 +7,4 @@ suginamiku
 soshite
 hantoshimae
 mazu
+pokemon
