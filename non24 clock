@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>25小时一轮回的时钟 | Non‑24 友好</title>
+  <style>
+    :root {
+      --bg: #0f172a; /* slate-900 */
+      --panel: #111827cc; /* gray-900 with alpha */
+      --text: #e5e7eb; /* gray-200 */
+      --accent: #22d3ee; /* cyan-400 */
+      --muted: #94a3b8; /* slate-400 */
+      --ring: #334155; /* slate-700 */
+      --good: #34d399; /* green-400 */
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial;
+      background: radial-gradient(1200px 800px at 20% 0%, #111827, #0b1224 60%, #060b17 100%);
+      color: var(--text);
+      min-height: 100svh;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+    }
+    .app {
+      width: min(100%, 980px);
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+    @media (max-width: 860px) {
+      .app { grid-template-columns: 1fr; }
+    }
+    .card {
+      background: var(--panel);
+      backdrop-filter: blur(6px);
+      border: 1px solid var(--ring);
+      border-radius: 18px;
+      padding: 18px 18px 22px;
+      box-shadow: 0 10px 30px rgba(0,0,0,.35);
+    }
+    h1 {
+      font-size: clamp(18px, 2.2vw, 24px);
+      margin: 0 0 10px;
+      letter-spacing: .4px;
+    }
+    .flex { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    label { font-size: 13px; color: var(--muted); }
+    input, button, select {
+      appearance: none;
+      border: 1px solid var(--ring);
+      background: #0b1220;
+      color: var(--text);
+      padding: 10px 12px;
+      border-radius: 12px;
+      font-size: 14px;
+      outline: none;
+    }
+    input[type="datetime-local"]{ width: 100%; }
+    input[type="number"]{ width: 100%; }
+    button.primary{
+      background: linear-gradient(135deg, #06b6d4, #22d3ee);
+      color: #081018;
+      border: none;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    button.ghost{ cursor: pointer; }
+    .big {
+      font-weight: 800;
+      font-size: clamp(28px, 6vw, 44px);
+      letter-spacing: 1px;
+    }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+    .muted { color: var(--muted); }
+    .ok { color: var(--good); }
+    .row { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+    .pill {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: #0b1220; border: 1px dashed var(--ring); color: var(--muted);
+      padding: 6px 10px; border-radius: 999px; font-size: 12px;
+    }
+
+    /* Analog clock */
+    .clock-wrap{ display:grid; place-items:center; }
+    svg{ width: min(100%, 440px); height: auto; }
+    .tick { stroke: #94a3b86e; stroke-width: 1; }
+    .hand { stroke: var(--text); stroke-linecap: round; }
+    .hand.sec { stroke: var(--accent); }
+    .center-dot { fill: var(--accent); }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <section class="card">
+      <h1>🕰️ 25 小时一轮回的时钟（可调 Non‑24）</h1>
+      <div style="margin: 6px 0 14px;" class="muted">
+        这个时钟将 <b>一整天设为 25 小时</b>（可自定义 23〜30）。你可以设置“生物午夜”锚点，时钟会以该时刻为 <span class="pill">00:00</span> 开始循环。
+      </div>
+
+      <div class="clock-wrap">
+        <svg viewBox="-110 -110 220 220" id="analog">
+          <defs>
+            <filter id="glow">
+              <feGaussianBlur stdDeviation="1" result="coloredBlur"/>
+              <feMerge>
+                <feMergeNode in="coloredBlur"/>
+                <feMergeNode in="SourceGraphic"/>
+              </feMerge>
+            </filter>
+          </defs>
+          <circle r="100" fill="#0b1220" stroke="#1f2937" stroke-width="2"/>
+          <!-- ticks & hour labels inserted by JS -->
+          <g id="ticks"></g>
+          <g id="labels"></g>
+          <!-- hands -->
+          <g id="hands" filter="url(#glow)">
+            <line id="h" class="hand" x1="0" y1="0" x2="0" y2="-56" stroke-width="4"/>
+            <line id="m" class="hand" x1="0" y1="0" x2="0" y2="-78" stroke-width="3"/>
+            <line id="s" class="hand sec" x1="0" y1="10" x2="0" y2="-86" stroke-width="1.8"/>
+          </g>
+          <circle class="center-dot" r="2.8" />
+        </svg>
+      </div>
+
+      <div class="row" style="margin-top:10px">
+        <div>
+          <div class="muted">当前 25h 时间</div>
+          <div id="digital" class="big mono">00:00:00</div>
+        </div>
+        <div>
+          <div class="muted">下一次 00:00（本地时）</div>
+          <div id="nextMid" class="mono">—</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h1>⚙️ 设置</h1>
+      <div class="grid2">
+        <div>
+          <label>一天长度（小时，23–30）</label>
+          <input id="cycleHours" type="number" min="23" max="30" step="0.1" value="25" />
+        </div>
+        <div>
+          <label>生物午夜锚点（本地时间）</label>
+          <input id="anchor" type="datetime-local" />
+        </div>
+      </div>
+      <div class="flex" style="margin-top:12px">
+        <button class="primary" id="setNow">将当前时间设为 00:00</button>
+        <button class="ghost" id="reset">重置到默认（今天 00:00, 25h）</button>
+        <span class="pill">提示：你可以把一天长度改成 24.5 / 25.2 等。</span>
+      </div>
+
+      <div style="margin-top:14px" class="muted">
+        <div>• <b>显示规则：</b> 小时范围 00–24，分钟/秒 00–59，整天按你设定的小时数一圈。</div>
+        <div>• <b>用途：</b> Non‑24 / DSPS 作息跟踪、实验时间轴、跨时区节律显示等。</div>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    // --- helpers ---
+    const $ = sel => document.querySelector(sel);
+    const two = n => String(Math.floor(n)).padStart(2, '0');
+
+    // state
+    const state = {
+      cycleHours: 25,
+      anchorMs: null, // epoch ms marking circadian 00:00
+    };
+
+    // init anchor: today local 00:00
+    function todayMidnight(){
+      const d = new Date();
+      d.setHours(0,0,0,0);
+      return d;
+    }
+
+    function setAnchorTo(date){
+      state.anchorMs = date.getTime();
+      // update input value
+      const tzOff = date.getTimezoneOffset();
+      const local = new Date(state.anchorMs - tzOff*60000);
+      $('#anchor').value = local.toISOString().slice(0,16);
+    }
+
+    // build ticks for 25h (dynamic by cycleHours)
+    function buildDial(){
+      const ticks = $('#ticks');
+      const labels = $('#labels');
+      ticks.innerHTML = labels.innerHTML = '';
+      const H = state.cycleHours;
+      for(let i=0;i< H;i++){
+        const angle = (i/H) * 2*Math.PI;
+        const x1 = Math.sin(angle)*90, y1 = -Math.cos(angle)*90;
+        const x2 = Math.sin(angle)*100, y2 = -Math.cos(angle)*100;
+        const t = document.createElementNS('http://www.w3.org/2000/svg','line');
+        t.setAttribute('x1', x1.toFixed(3));
+        t.setAttribute('y1', y1.toFixed(3));
+        t.setAttribute('x2', x2.toFixed(3));
+        t.setAttribute('y2', y2.toFixed(3));
+        t.setAttribute('class','tick');
+        t.setAttribute('stroke-width', i%5===0? 1.8: 1);
+        ticks.appendChild(t);
+
+        // labels every 5 hours
+        if(i%5===0){
+          const lx = Math.sin(angle)*74, ly = -Math.cos(angle)*74;
+          const g = document.createElementNS('http://www.w3.org/2000/svg','text');
+          g.setAttribute('x', lx.toFixed(2));
+          g.setAttribute('y', (ly+4).toFixed(2));
+          g.setAttribute('fill', '#cbd5e1');
+          g.setAttribute('font-size', '8');
+          g.setAttribute('text-anchor', 'middle');
+          g.textContent = String(i).padStart(2,'0');
+          labels.appendChild(g);
+        }
+      }
+    }
+
+    function circadianNow(){
+      const now = Date.now();
+      const len = state.cycleHours*3600_000; // ms
+      const delta = ((now - state.anchorMs) % len + len) % len; // [0,len)
+      const totalSec = delta/1000;
+      const h = Math.floor(totalSec/3600);
+      const m = Math.floor((totalSec%3600)/60);
+      const s = totalSec%60; // float
+      return {h,m,s,delta,len};
+    }
+
+    function update(){
+      const {h,m,s,delta,len} = circadianNow();
+      $('#digital').textContent = `${two(h)}:${two(m)}:${two(s)}`;
+
+      // hands
+      const H = state.cycleHours;
+      const hourAngle = ((h + m/60 + s/3600) / H) * 360;
+      const minAngle  = (m/60) * 360; // per circadian hour
+      const secAngle  = (s/60) * 360;
+      $('#h').setAttribute('transform', `rotate(${hourAngle})`);
+      $('#m').setAttribute('transform', `rotate(${minAngle})`);
+      $('#s').setAttribute('transform', `rotate(${secAngle})`);
+
+      // next midnight (local time)
+      const now = Date.now();
+      const k = Math.floor((now - state.anchorMs) / len) + 1;
+      const nextMs = state.anchorMs + k*len;
+      const d = new Date(nextMs);
+      $('#nextMid').textContent = d.toLocaleString();
+
+      requestAnimationFrame(update);
+    }
+
+    // inputs
+    $('#cycleHours').addEventListener('change', e=>{
+      const v = parseFloat(e.target.value);
+      if(isFinite(v) && v>=23 && v<=30){
+        state.cycleHours = v;
+        buildDial();
+      }
+    });
+
+    $('#anchor').addEventListener('change', e=>{
+      // value is local string; convert back to epoch
+      const val = e.target.value; // "YYYY-MM-DDTHH:MM"
+      if(!val) return;
+      const ms = new Date(val).getTime();
+      // value treated as local by Date(); correct with tz offset
+      const tz = new Date().getTimezoneOffset();
+      state.anchorMs = ms + tz*60000;
+    });
+
+    $('#setNow').addEventListener('click', ()=>{
+      setAnchorTo(new Date());
+    });
+    $('#reset').addEventListener('click', ()=>{
+      state.cycleHours = 25; $('#cycleHours').value = 25; buildDial();
+      setAnchorTo(todayMidnight());
+    });
+
+    // boot
+    buildDial();
+    setAnchorTo(todayMidnight());
+    update();
+  </script>
+</body>
+</html>
