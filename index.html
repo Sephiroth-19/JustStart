@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Non-24 生物钟（可自定义日长）</title>
+  <style>
+    :root{
+      --bg:#0f1115;--card:#151923;--ink:#e8ecf1;--muted:#9aa4b2;--accent:#7cc7ff;
+      --ok:#59d18c;--warn:#ffd166;--danger:#ff6b6b;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;background:linear-gradient(180deg,#0e1117,#0b0d12);
+      color:var(--ink);font:16px/1.6 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,'Helvetica Neue',Arial;
+    }
+    .wrap{
+      max-width:1200px;margin:0 auto;padding:20px;display:grid;gap:20px;
+      grid-template-columns:1.3fr 1fr;
+    }
+    @media (max-width:960px){.wrap{grid-template-columns:1fr}}
+    .card{
+      background:var(--card);border:1px solid #23293a;box-shadow:0 10px 30px rgba(0,0,0,.3);
+      border-radius:16px;padding:16px;
+    }
+    h1{font-size:22px;margin:0 0 6px}
+    .sub{color:var(--muted);font-size:13px;margin-bottom:10px}
+    .clock-area{display:grid;gap:14px;align-items:center;justify-items:center}
+    canvas{width:100%;max-width:520px;aspect-ratio:1;border-radius:12px;background:#0b0f16}
+    .readouts{display:grid;gap:8px;width:100%;max-width:520px}
+    .kpi{
+      display:flex;justify-content:space-between;align-items:center;
+      background:#0e1320;border:1px solid #222a3b;border-radius:10px;padding:10px 12px;
+      font-variant-numeric:tabular-nums;
+    }
+    .kpi b{font-size:18px}
+    .kpi small{color:var(--muted)}
+    .panel h2{margin:6px 0 12px;font-size:18px}
+    .row{display:grid;grid-template-columns:1fr auto;gap:10px;margin-bottom:12px}
+    label{display:block;color:var(--muted);font-size:13px;margin-bottom:6px}
+    input[type="number"],input[type="datetime-local"]{
+      width:100%;padding:10px;border-radius:10px;background:#0b0f16;color:var(--ink);
+      border:1px solid #222a3b;outline:none;
+    }
+    input[type="number"]::-webkit-outer-spin-button,
+    input[type="number"]::-webkit-inner-spin-button{appearance:none;margin:0}
+    .btns{display:flex;flex-wrap:wrap;gap:8px}
+    button{
+      appearance:none;border:1px solid #273147;background:#111728;color:var(--ink);
+      padding:10px 12px;border-radius:10px;cursor:pointer;transition:.15s;user-select:none;
+    }
+    button:hover{transform:translateY(-1px);box-shadow:0 6px 16px rgba(0,0,0,.25)}
+    .ok{border-color:#24593f;background:#0f1a15}
+    .warn{border-color:#5c4a1a;background:#17140b}
+    .danger{border-color:#5b2323;background:#1a0f0f}
+    .tip{font-size:13px;color:var(--muted)}
+    footer.card{font-size:14px}
+    code{background:#0e1320;border:1px solid #222a3b;padding:.1em .4em;border-radius:6px}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <!-- 左：时钟显示 -->
+    <section class="card clock-area">
+      <header style="width:100%;max-width:520px">
+        <h1>Non-24 生物钟</h1>
+        <div class="sub">自定义“生物一天”的长度；支持锚点（把当前时间设为 00:00）。</div>
+      </header>
+
+      <canvas id="dial" width="900" height="900" aria-label="生物钟表盘"></canvas>
+
+      <div class="readouts">
+        <div class="kpi">
+          <div>
+            <small>当前生物时间</small><br/>
+            <b id="bioNow">—:—:—</b>
+          </div>
+          <div style="text-align:right">
+            <small>生物日长度</small><br/>
+            <b><span id="dayLenLabel">25</span>h</b>
+          </div>
+        </div>
+        <div class="kpi">
+          <div>
+            <small>下一次生物 00:00（对应本地时间）</small><br/>
+            <b id="nextZeroLocal">—</b>
+          </div>
+          <div style="text-align:right">
+            <small>锚点（00:00 起点，本地时区）</small><br/>
+            <b id="anchorLabel">—</b>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 右：设置面板 -->
+    <aside class="card panel">
+      <h2>设置</h2>
+
+      <div class="row">
+        <div>
+          <label for="dayLen">一天长度（小时，23–30，支持小数）</label>
+          <input id="dayLen" type="number" step="0.1" min="23" max="30" />
+          <div class="tip">用于计算与表盘刻度；非整数时表盘仍以“最接近的整数小时”绘制刻度。</div>
+        </div>
+        <div style="align-self:end">
+          <button id="applyLen" class="ok">应用</button>
+        </div>
+      </div>
+
+      <div class="row">
+        <div>
+          <label for="anchorInput">自定义锚点（将该本地时间视为生物 00:00）</label>
+          <input id="anchorInput" type="datetime-local" />
+          <div class="tip">也可直接点击下面“将当前时间设为 00:00”。</div>
+        </div>
+        <div style="align-self:end">
+          <button id="applyAnchor" class="ok">设置锚点</button>
+        </div>
+      </div>
+
+      <div class="btns" style="margin-top:6px">
+        <button id="setNowAsZero" class="ok">将当前时间设为 00:00</button>
+        <button id="resetDefault" class="warn">重置到默认（今天00:00, 25h）</button>
+        <button id="clearStorage" class="danger">清除本机保存</button>
+      </div>
+
+      <hr style="border:none;border-top:1px solid #262d40;margin:16px 0" />
+      <div class="tip">
+        • 所有设置仅保存在本机浏览器 <code>localStorage</code>，不同设备/浏览器互不影响。<br/>
+        • GitHub Pages 打开即可使用，无需服务器。<br/>
+        • 改成 23–30 小时可用于模拟延迟睡眠或非24小时节律的“漂移”。<br/>
+      </div>
+    </aside>
+
+    <!-- 底部：说明 -->
+    <footer class="card" style="grid-column:1/-1">
+      <b>使用说明</b><br/>
+      1）点击“将当前时间设为 00:00”或在上方输入框设置锚点；2）调整“一天长度”；3）页面左侧显示模拟表盘与数字时间；4）“下一次 00:00（对应本地时间）”会自动计算出从现在起到生物下一天开始时刻对应的本机本地时间。<br/>
+      <br/>
+      <b>注意</b>：本工具将“生物一天长度”视作真实时钟的时长（例如 25h 意味着每过 25 小时回到 00:00）。数字时间的“时”范围为 <code>0 .. dayLength-1</code>，分与秒仍为 0..59。
+    </footer>
+  </div>
+
+  <script>
+    // —— 本地持久化键 —— //
+    const LS_KEY_LEN = 'non24_dayLength';
+    const LS_KEY_ANCHOR = 'non24_anchorEpochMS';
+
+    // —— 读取/回退默认 —— //
+    function todayLocalMidnight() {
+      const d = new Date();
+      d.setHours(0,0,0,0);
+      return d.getTime();
+    }
+    function readSettings(){
+      const rawLen = localStorage.getItem(LS_KEY_LEN);
+      const rawAnchor = localStorage.getItem(LS_KEY_ANCHOR);
+      const dayLength = (rawLen!==null)? Math.max(23, Math.min(30, parseFloat(rawLen))) : 25;
+      const anchor = (rawAnchor!==null && !Number.isNaN(+rawAnchor))? +rawAnchor : todayLocalMidnight();
+      return {dayLength, anchor};
+    }
+    function writeSettings({dayLength, anchor}){
+      localStorage.setItem(LS_KEY_LEN, String(dayLength));
+      localStorage.setItem(LS_KEY_ANCHOR, String(anchor));
+    }
+    function clearSettings(){
+      localStorage.removeItem(LS_KEY_LEN);
+      localStorage.removeItem(LS_KEY_ANCHOR);
+    }
+
+    // —— 时间计算（将“生物一天”视为真实的 dayLength 小时） —— //
+    function computeBio(nowMS, anchorMS, dayLengthHours){
+      const dayLenMs = dayLengthHours * 3600_000;
+      const el = ((nowMS - anchorMS) % dayLenMs + dayLenMs) % dayLenMs; // [0, dayLenMs)
+      const hours = Math.floor(el / 3600_000);
+      const minutes = Math.floor((el % 3600_000) / 60_000);
+      const seconds = Math.floor((el % 60_000) / 1000);
+      return {hours, minutes, seconds, frac: el / dayLenMs};
+    }
+    function nextZeroLocalTime(nowMS, anchorMS, dayLengthHours){
+      const dayLenMs = dayLengthHours * 3600_000;
+      if (nowMS <= anchorMS) return anchorMS;
+      const k = Math.ceil((nowMS - anchorMS) / dayLenMs);
+      return anchorMS + k * dayLenMs;
+    }
+
+    // —— DOM 引用 —— //
+    const $dayLen = document.getElementById('dayLen');
+    const $applyLen = document.getElementById('applyLen');
+    const $anchorInput = document.getElementById('anchorInput');
+    const $applyAnchor = document.getElementById('applyAnchor');
+    const $setNowAsZero = document.getElementById('setNowAsZero');
+    const $resetDefault = document.getElementById('resetDefault');
+    const $clearStorage = document.getElementById('clearStorage');
+
+    const $bioNow = document.getElementById('bioNow');
+    const $nextZeroLocal = document.getElementById('nextZeroLocal');
+    const $anchorLabel = document.getElementById('anchorLabel');
+    const $dayLenLabel = document.getElementById('dayLenLabel');
+
+    const dial = document.getElementById('dial');
+    const ctx = dial.getContext('2d');
+
+    // —— 渲染表盘 —— //
+    function drawDial(frac, dayLengthHours){
+      const W = dial.width, H = dial.height;
+      const cx = W/2, cy = H/2, R = Math.min(W,H)*0.42;
+
+      ctx.clearRect(0,0,W,H);
+
+      // 背景与外圈
+      ctx.save();
+      const grad = ctx.createRadialGradient(cx,cy, R*0.2, cx,cy, R*1.05);
+      grad.addColorStop(0,'#0b0f16'); grad.addColorStop(1,'#080b11');
+      ctx.fillStyle = grad; ctx.beginPath();
+      ctx.arc(cx,cy,R*1.06,0,Math.PI*2); ctx.fill();
+
+      ctx.strokeStyle = '#273147'; ctx.lineWidth = 10;
+      ctx.beginPath(); ctx.arc(cx,cy,R,0,Math.PI*2); ctx.stroke();
+
+      // 刻度（按 dayLength 四舍五入到整数）
+      const ticks = Math.max(6, Math.round(dayLengthHours));
+      ctx.font = `${Math.floor(R*0.10)}px system-ui,Segoe UI`;
+      ctx.textAlign='center'; ctx.textBaseline='middle';
+      for(let i=0;i<ticks;i++){
+        const t = i / ticks; // 0..1
+        const ang = -Math.PI/2 + t*2*Math.PI;
+        const r1 = R*0.87, r2 = R*0.97;
+        ctx.strokeStyle = i%5===0 ? '#7cc7ff' : '#394862';
+        ctx.lineWidth = i%5===0 ? 4 : 2;
+        ctx.beginPath();
+        ctx.moveTo(cx + r1*Math.cos(ang), cy + r1*Math.sin(ang));
+        ctx.lineTo(cx + r2*Math.cos(ang), cy + r2*Math.sin(ang));
+        ctx.stroke();
+
+        // 数字（0..ticks-1）
+        if (i% (ticks>24? Math.ceil(ticks/12):2) ===0){
+          const rn = R*0.72;
+          ctx.fillStyle = '#9aa4b2';
+          ctx.fillText(String(i), cx + rn*Math.cos(ang), cy + rn*Math.sin(ang));
+        }
+      }
+
+      // 进度弧（从 00:00 开始走过的比例）
+      ctx.lineCap='round';
+      ctx.strokeStyle = '#59d18c';
+      ctx.lineWidth = 12;
+      ctx.beginPath();
+      ctx.arc(cx,cy,R*0.60,-Math.PI/2, -Math.PI/2 + frac*2*Math.PI);
+      ctx.stroke();
+
+      // 指针（时、分、秒：基于“生物时间”）
+      const hoursTotal = frac * dayLengthHours; // 生物小时（浮点）
+      const hAng = -Math.PI/2 + (hoursTotal/dayLengthHours)*2*Math.PI;
+      const mAng = -Math.PI/2 + ((hoursTotal%1)*60/60)*2*Math.PI;
+      const sAng = -Math.PI/2 + ((hoursTotal*60%1)*60/60)*2*Math.PI;
+
+      // 时针
+      ctx.strokeStyle='#e8ecf1'; ctx.lineWidth=8;
+      ctx.beginPath();
+      ctx.moveTo(cx,cy);
+      ctx.lineTo(cx + R*0.5*Math.cos(hAng), cy + R*0.5*Math.sin(hAng));
+      ctx.stroke();
+
+      // 分针
+      ctx.strokeStyle='#7cc7ff'; ctx.lineWidth=5;
+      ctx.beginPath();
+      ctx.moveTo(cx,cy);
+      ctx.lineTo(cx + R*0.70*Math.cos(mAng), cy + R*0.70*Math.sin(mAng));
+      ctx.stroke();
+
+      // 秒针
+      ctx.strokeStyle='#ffd166'; ctx.lineWidth=2;
+      ctx.beginPath();
+      ctx.moveTo(cx,cy);
+      ctx.lineTo(cx + R*0.80*Math.cos(sAng), cy + R*0.80*Math.sin(sAng));
+      ctx.stroke();
+
+      // 中心点
+      ctx.fillStyle='#e8ecf1';
+      ctx.beginPath(); ctx.arc(cx,cy,6,0,Math.PI*2); ctx.fill();
+
+      ctx.restore();
+    }
+
+    // —— UI 同步 —— //
+    let state = readSettings();
+    function fmt2(n){return n.toString().padStart(2,'0')}
+    function fmtLocal(ms){
+      const d = new Date(ms);
+      const y = d.getFullYear(), m = fmt2(d.getMonth()+1), dd = fmt2(d.getDate());
+      const hh = fmt2(d.getHours()), mm = fmt2(d.getMinutes()), ss = fmt2(d.getSeconds());
+      const tz = /\((.*)\)$/.exec(d.toString()); // e.g., (Japan Standard Time)
+      const tzText = tz? tz[1] : Intl.DateTimeFormat().resolvedOptions().timeZone;
+      return `${y}-${m}-${dd} ${hh}:${mm}:${ss}  ${tzText}`;
+    }
+    function refreshInputs(){
+      $dayLen.value = state.dayLength;
+      $dayLenLabel.textContent = state.dayLength;
+      $anchorLabel.textContent = fmtLocal(state.anchor);
+
+      // datetime-local 需要本地 ISO 且去秒
+      const d = new Date(state.anchor);
+      const iso = new Date(state.anchor - d.getTimezoneOffset()*60*1000).toISOString().slice(0,16);
+      $anchorInput.value = iso;
+    }
+
+    function tick(){
+      const now = Date.now();
+      const bio = computeBio(now, state.anchor, state.dayLength);
+      $bioNow.textContent = `${fmt2(bio.hours)}:${fmt2(bio.minutes)}:${fmt2(bio.seconds)}`;
+
+      const next0 = nextZeroLocalTime(now, state.anchor, state.dayLength);
+      $nextZeroLocal.textContent = fmtLocal(next0);
+
+      drawDial(bio.frac, state.dayLength);
+      requestAnimationFrame(tick);
+    }
+
+    // —— 事件 —— //
+    $applyLen.addEventListener('click', ()=>{
+      const v = parseFloat($dayLen.value);
+      if (Number.isNaN(v)) return;
+      state.dayLength = Math.min(30, Math.max(23, v));
+      writeSettings(state);
+      refreshInputs();
+    });
+    $applyAnchor.addEventListener('click', ()=>{
+      if (!$anchorInput.value) return;
+      // datetime-local 是本地时间，无时区；需要转回 epoch
+      const localStr = $anchorInput.value; // "YYYY-MM-DDTHH:mm"
+      const local = new Date(localStr);
+      // 修正本地偏移（兼容性更强的做法：按分解字段构造）
+      const parts = localStr.split(/[-T:]/).map(Number);
+      const anchor = new Date(parts[0], parts[1]-1, parts[2], parts[3], parts[4], 0, 0).getTime();
+      state.anchor = anchor;
+      writeSettings(state);
+      refreshInputs();
+    });
+    $setNowAsZero.addEventListener('click', ()=>{
+      state.anchor = Date.now();
+      writeSettings(state);
+      refreshInputs();
+    });
+    $resetDefault.addEventListener('click', ()=>{
+      state.dayLength = 25;
+      state.anchor = todayLocalMidnight();
+      writeSettings(state);
+      refreshInputs();
+    });
+    $clearStorage.addEventListener('click', ()=>{
+      clearSettings();
+      // 恢复默认但不写入（直到用户再次操作）
+      state = {dayLength:25, anchor: todayLocalMidnight()};
+      refreshInputs();
+      alert('已清除本机保存的设置。当前为内存中的默认状态（今天00:00, 25h）。');
+    });
+
+    // —— 初始化 —— //
+    refreshInputs();
+    tick();
+    // 当窗口尺寸变化时，动态放大/缩小画布像素密度，保证高清
+    function fitCanvas(){
+      const dpr = Math.max(1, Math.min(2.5, window.devicePixelRatio || 1));
+      const rect = dial.getBoundingClientRect();
+      dial.width = Math.round(rect.width * dpr);
+      dial.height = dial.width; // 保持正方形
+      ctx.setTransform(dpr,0,0,dpr,0,0); // 用 CSS 大小 * dpr 的坐标系
+    }
+    const ro = new ResizeObserver(()=>{fitCanvas()});
+    ro.observe(dial);
+    fitCanvas();
+  </script>
+</body>
+</html>
