@@ -152,9 +152,10 @@
         </div>
       </div>
       <div class="flex" style="margin-top:12px">
-        <button class="primary" id="setNow">将当前时间设为 00:00</button>
-        <button class="ghost" id="reset">重置到默认（今天 00:00, 25h）</button>
-        <span class="pill">提示：你可以把一天长度改成 24.5 / 25.2 等。</span>
+        <button class=\"primary\" id=\"setNow\">将当前时间设为 00:00<\/button>
+        <button class=\"ghost\" id=\"reset\">重置到默认（今天 00:00, 25h）<\/button>
+        <button class=\"ghost\" id=\"clear\">清除本机保存<\/button>
+        <span class=\"pill\">提示：你可以把一天长度改成 24.5 \/ 25.2 等。<\/span>
       </div>
 
       <div style="margin-top:14px" class="muted">
@@ -174,6 +175,29 @@
       cycleHours: 25,
       anchorMs: null, // epoch ms marking circadian 00:00
     };
+
+    // --- persistence (per-device) ---
+    const KEY_H = 'non24.cycleHours';
+    const KEY_A = 'non24.anchorMs';
+    function save(){
+      localStorage.setItem(KEY_H, String(state.cycleHours));
+      if(state.anchorMs!=null) localStorage.setItem(KEY_A, String(state.anchorMs));
+    }
+    function load(){
+      const h = parseFloat(localStorage.getItem(KEY_H));
+      if(isFinite(h) && h>=23 && h<=30){ state.cycleHours = h; }
+      const a = parseFloat(localStorage.getItem(KEY_A));
+      if(isFinite(a)){ state.anchorMs = a; }
+      // reflect to inputs if exist
+      const cyc = document.querySelector('#cycleHours'); if(cyc) cyc.value = state.cycleHours;
+      if(state.anchorMs!=null){
+        const d = new Date(state.anchorMs);
+        const tzOff = d.getTimezoneOffset();
+        const local = new Date(state.anchorMs - tzOff*60000);
+        const inp = document.querySelector('#anchor');
+        if(inp) inp.value = local.toISOString().slice(0,16);
+      }
+    }
 
     // init anchor: today local 00:00
     function todayMidnight(){
@@ -264,31 +288,40 @@
       if(isFinite(v) && v>=23 && v<=30){
         state.cycleHours = v;
         buildDial();
+        save();
       }
     });
 
     $('#anchor').addEventListener('change', e=>{
-      // value is local string; convert back to epoch
       const val = e.target.value; // "YYYY-MM-DDTHH:MM"
       if(!val) return;
       const ms = new Date(val).getTime();
-      // value treated as local by Date(); correct with tz offset
       const tz = new Date().getTimezoneOffset();
       state.anchorMs = ms + tz*60000;
+      save();
     });
 
     $('#setNow').addEventListener('click', ()=>{
       setAnchorTo(new Date());
+      save();
     });
     $('#reset').addEventListener('click', ()=>{
       state.cycleHours = 25; $('#cycleHours').value = 25; buildDial();
       setAnchorTo(todayMidnight());
+      save();
     });
 
     // boot
+    load();
     buildDial();
-    setAnchorTo(todayMidnight());
+    if(state.anchorMs==null){ setAnchorTo(todayMidnight()); } else { setAnchorTo(new Date(state.anchorMs)); }
     update();
+      // clear storage
+    $('#clear').addEventListener('click', ()=>{
+      localStorage.removeItem(KEY_H);
+      localStorage.removeItem(KEY_A);
+      alert('已清除本机保存。当前设置仍在本页有效，如需恢复默认请点“重置”。');
+    });
   </script>
 </body>
 </html>
