@@ -203,12 +203,19 @@
     const dial = document.getElementById('dial');
     const ctx = dial.getContext('2d');
 
-    // —— 渲染表盘 —— //
+    // —— 表盘绘制（按 CSS 逻辑像素坐标；高清用 DPR 缩放） —— //
     function drawDial(frac, dayLengthHours){
-      const W = dial.width, H = dial.height;
+      // 以 CSS 尺寸为坐标系，避免 DPR 叠乘导致的裁切/偏移
+      const logicalW = dial.getBoundingClientRect().width;
+      const logicalH = logicalW; // 保持正方形
+      const W = logicalW, H = logicalH;
       const cx = W/2, cy = H/2, R = Math.min(W,H)*0.42;
 
-      ctx.clearRect(0,0,W,H);
+      // 先用未缩放坐标清空整块像素，再回到缩放后的坐标
+      ctx.save();
+      ctx.setTransform(1,0,0,1,0,0);
+      ctx.clearRect(0,0,dial.width,dial.height);
+      ctx.restore();
 
       // 背景与外圈
       ctx.save();
@@ -292,7 +299,7 @@
       const d = new Date(ms);
       const y = d.getFullYear(), m = fmt2(d.getMonth()+1), dd = fmt2(d.getDate());
       const hh = fmt2(d.getHours()), mm = fmt2(d.getMinutes()), ss = fmt2(d.getSeconds());
-      const tz = /\((.*)\)$/.exec(d.toString()); // e.g., (Japan Standard Time)
+      const tz = /\((.*)\)$/.exec(d.toString());
       const tzText = tz? tz[1] : Intl.DateTimeFormat().resolvedOptions().timeZone;
       return `${y}-${m}-${dd} ${hh}:${mm}:${ss}  ${tzText}`;
     }
@@ -329,10 +336,7 @@
     });
     $applyAnchor.addEventListener('click', ()=>{
       if (!$anchorInput.value) return;
-      // datetime-local 是本地时间，无时区；需要转回 epoch
       const localStr = $anchorInput.value; // "YYYY-MM-DDTHH:mm"
-      const local = new Date(localStr);
-      // 修正本地偏移（兼容性更强的做法：按分解字段构造）
       const parts = localStr.split(/[-T:]/).map(Number);
       const anchor = new Date(parts[0], parts[1]-1, parts[2], parts[3], parts[4], 0, 0).getTime();
       state.anchor = anchor;
@@ -352,26 +356,31 @@
     });
     $clearStorage.addEventListener('click', ()=>{
       clearSettings();
-      // 恢复默认但不写入（直到用户再次操作）
       state = {dayLength:25, anchor: todayLocalMidnight()};
       refreshInputs();
       alert('已清除本机保存的设置。当前为内存中的默认状态（今天00:00, 25h）。');
     });
 
-    // —— 初始化 —— //
-    refreshInputs();
-    tick();
-    // 当窗口尺寸变化时，动态放大/缩小画布像素密度，保证高清
+    // —— 画布像素密度适配（高清 + 正确坐标系） —— //
     function fitCanvas(){
-      const dpr = Math.max(1, Math.min(2.5, window.devicePixelRatio || 1));
+      const dpr = window.devicePixelRatio || 1;
       const rect = dial.getBoundingClientRect();
-      dial.width = Math.round(rect.width * dpr);
-      dial.height = dial.width; // 保持正方形
-      ctx.setTransform(dpr,0,0,dpr,0,0); // 用 CSS 大小 * dpr 的坐标系
+
+      // 画布实际像素（用于清晰度）
+      dial.width  = Math.round(rect.width * dpr);
+      dial.height = Math.round(rect.width * dpr); // 正方形
+
+      // 将绘制坐标缩放为“CSS 像素”，避免二次缩放
+      ctx.setTransform(1,0,0,1,0,0);
+      ctx.scale(dpr, dpr);
     }
     const ro = new ResizeObserver(()=>{fitCanvas()});
     ro.observe(dial);
+
+    // —— 初始化 —— //
+    refreshInputs();
     fitCanvas();
+    tick();
   </script>
 </body>
 </html>
