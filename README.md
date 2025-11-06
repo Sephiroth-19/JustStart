@@ -2,7 +2,7 @@
 
 A minimalist web app that simulates a **Non-24-hour circadian rhythm** — perfect for tracking or experimenting with delayed sleep cycles and custom “biological days”.
 
-> 🌐 Live demo: [https://sephiroth-19.github.io/non24-clock/](https://sephiroth-19.github.io/non24-clock/)
+> 🌐 Live demo: [[https://sephiroth-19.github.io/non24-clock/](https://sephiroth-19.github.io/non24-clock/)](https://sephiroth-19.github.io/JustStart/)
 
 ---
 
